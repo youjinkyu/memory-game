@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>브레인롯 메모리 게임</title>
+    <style>
+        :root {
+            --bg-color: #f0f4f8;
+            --primary-color: #ffffff;
+            --secondary-color: #e3f2fd;
+            --accent-color: #2979ff;
+            --font-color: #333333;
+            --card-bg: #16213e;
+            --card-shadow: rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--font-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: var(--accent-color);
+            text-shadow: none;
+        }
+
+        .notification-container {
+            height: 40px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .notification-text {
+            background-color: var(--secondary-color);
+            color: var(--font-color);
+            padding: 10px 25px;
+            border-radius: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-20px);
+            transition: opacity 0.4s ease, visibility 0.4s ease, transform 0.4s ease;
+        }
+
+        .notification-text.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            perspective: 1000px;
+        }
+
+        .card {
+            aspect-ratio: 1;
+            position: relative;
+            cursor: pointer;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px var(--card-shadow);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .card-front {
+            background-color: #fff;
+            background-image: url('images/card-face.jpg');
+            background-size: 50%;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .card-back {
+            background-color: var(--primary-color);
+            transform: rotateY(180deg);
+        }
+
+        .card-back img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .game-over.show {
+            display: flex;
+        }
+
+        .game-over-content {
+            background: var(--primary-color);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border: 2px solid var(--accent-color);
+        }
+
+        .game-over-content h2 {
+            color: var(--accent-color);
+            margin-bottom: 20px;
+        }
+
+        #play-again-btn {
+            background: var(--accent-color);
+            color: var(--primary-color);
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background-color 0.3s ease;
+        }
+
+        #play-again-btn:hover {
+            background-color: #448aff;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            h1 {
+                font-size: 2rem;
+                margin-bottom: 15px;
+            }
+            .game-board {
+                gap: 10px;
+            }
+            .game-over-content {
+                width: 90%;
+                padding: 30px;
+            }
+            .notification-text {
+                font-size: 1rem;
+                padding: 8px 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+            .game-board {
+                gap: 8px;
+            }
+            .game-over-content {
+                padding: 20px;
+            }
+            .game-over-content h2 {
+                font-size: 1.5rem;
+            }
+            #play-again-btn {
+                padding: 12px 25px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>브레인롯 메모리 게임</h1>
+        <div class="notification-container">
+            <p class="notification-text"></p>
+        </div>
+        <div id="game-board" class="game-board"></div>
+        <div class="game-over" id="game-over">
+            <div class="game-over-content">
+                <h2>축하합니다! 🎉</h2>
+                <p>모든 브레인롯을 찾았습니다!</p>
+                <button id="play-again-btn">다시 하기</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const gameBoard = document.getElementById('game-board');
+            const notificationText = document.querySelector('.notification-text');
+            const gameOverScreen = document.getElementById('game-over');
+            const playAgainBtn = document.getElementById('play-again-btn');
+
+            const brainrotCharacters = [
+                { id: "Ballerina Cappucina", name: "Ballerina Cappucina", image: "images/brainrot_images/Ballerina Cappucina.jpg" },
+                { id: "Bananita Dolfinita", name: "Bananita Dolfinita", image: "images/brainrot_images/Bananita Dolfinita.jpg" },
+                { id: "Blueberrinni Octopussini", name: "Blueberrinni Octopussini", image: "images/brainrot_images/Blueberrinni Octopussini.jpg" },
+                { id: "Bobrelli Bananelli", name: "Bobrelli Bananelli", image: "images/brainrot_images/Bobrelli Bananelli.jpg" },
+                { id: "Bobrito Bandito", name: "Bobrito Bandito", image: "images/brainrot_images/Bobrito Bandito.jpg" },
+                { id: "Bombardiro Crocodilo", name: "Bombardiro Crocodilo", image: "images/brainrot_images/Bombardiro Crocodilo.jpg" },
+                { id: "Boneca Ambalabu", name: "Boneca Ambalabu", image: "images/brainrot_images/Boneca Ambalabu.jpg" },
+                { id: "Brr Brr Patapim", name: "Brr Brr Patapim", image: "images/brainrot_images/Brr Brr Patapim.jpg" },
+                { id: "Brri Brri Bicus Dicus Bombicus", name: "Brri Brri Bicus Dicus Bombicus", image: "images/brainrot_images/Brri Brri Bicus Dicus Bombicus.jpg" },
+                { id: "Burbaloni Lulilolli", name: "Burbaloni Lulilolli", image: "images/brainrot_images/Burbaloni Lulilolli.jpg" },
+                { id: "Capuccino Assassino", name: "Capuccino Assassino", image: "images/brainrot_images/Capuccino Assassino.jpg" },
+                { id: "Chai Maestro", name: "Chai Maestro", image: "images/brainrot_images/Chai Maestro.jpg" },
+                { id: "Chimpanzini Bananini", name: "Chimpanzini Bananini", image: "images/brainrot_images/Chimpanzini Bananini.jpg" },
+                { id: "Cocofanto Elefanto", name: "Cocofanto Elefanto", image: "images/brainrot_images/Cocofanto Elefanto.jpg" },
+                { id: "Crocodillo Ananasinno", name: "Crocodillo Ananasinno", image: "images/brainrot_images/Crocodillo Ananasinno.jpg" },
+                { id: "Ecco Cavallo Virtuoso", name: "Ecco Cavallo Virtuoso", image: "images/brainrot_images/Ecco Cavallo Virtuoso.jpg" },
+                { id: "Frigo Camelo", name: "Frigo Camelo", image: "images/brainrot_images/Frigo Camelo.jpg" },
+                { id: "Frulli Frulla", name: "Frulli Frulla", image: "images/brainrot_images/Frulli Frulla.jpg" },
+                { id: "Garamararamararaman dan Madudungdung tak tuntung perkuntung", name: "Garamararamararaman dan Madudungdung tak tuntung perkuntung", image: "images/brainrot_images/Garamararamararaman dan Madudungdung tak tuntung perkuntung.jpg" },
+                { id: "Girafa Celeste", name: "Girafa Celeste", image: "images/brainrot_images/Girafa Celeste.jpg" },
+                { id: "Glorbo Fruttodrillo", name: "Glorbo Fruttodrillo", image: "images/brainrot_images/Glorbo Fruttodrillo.jpg" },
+                { id: "Graipussi Medussi", name: "Graipussi Medussi", image: "images/brainrot_images/Graipussi Medussi.jpg" },
+                { id: "Il Cacto Hipopotamo", name: "Il Cacto Hipopotamo", image: "images/brainrot_images/Il Cacto Hipopotamo.jpg" },
+                { id: "Kudanile Astronote", name: "Kudanile Astronote", image: "images/brainrot_images/Kudanile Astronote.jpg" },
+                { id: "La Vaca Saturno Saturnita", name: "La Vaca Saturno Saturnita", image: "images/brainrot_images/La Vaca Saturno Saturnita.jpg" },
+                { id: "Leonelli Cactuselli", name: "Leonelli Cactuselli", image: "images/brainrot_images/Leonelli Cactuselli.jpg" },
+                { id: "Lirilì Larilà", name: "Lirilì Larilà", image: "images/brainrot_images/Lirilì Larilà.jpg" },
+                { id: "Orangutini Ananasini", name: "Orangutini Ananasini", image: "images/brainrot_images/Orangutini Ananasini.jpg" },
+                { id: "Pi Pi Kiwi", name: "Pi Pi Kiwi", image: "images/brainrot_images/Pi Pi Kiwi.jpg" },
+                { id: "Pot Hotspot", name: "Pot Hotspot", image: "images/brainrot_images/Pot Hotspot.jpg" },
+                { id: "Rhino Toasterino", name: "Rhino Toasterino", image: "images/brainrot_images/Rhino Toasterino.jpg" },
+                { id: "Sigma Boy", name: "Sigma Boy", image: "images/brainrot_images/Sigma Boy.jpg" },
+                { id: "Ta Ta Ta Ta Ta Ta Ta Ta Ta Ta Ta Sahur", name: "Ta Ta Ta Ta Ta Ta Ta Ta Ta Ta Ta Sahur", image: "images/brainrot_images/Ta Ta Ta Ta Ta Ta Ta Ta Ta Ta Ta Sahur.jpg" },
+                { id: "Tigrrullini Watermellini", name: "Tigrrullini Watermellini", image: "images/brainrot_images/Tigrrullini Watermellini.jpg" },
+                { id: "Tigrulli grapefrutunni", name: "Tigrulli grapefrutunni", image: "images/brainrot_images/Tigrulli grapefrutunni.jpg" },
+                { id: "Torrtuginni Dragonfrutinni", name: "Torrtuginni Dragonfrutinni", image: "images/brainrot_images/Torrtuginni Dragonfrutinni.jpg" },
+                { id: "Tralalero Tralala", name: "Tralalero Tralala", image: "images/brainrot_images/Tralalero Tralala.jpg" },
+                { id: "Tric Trac Baraboom", name: "Tric Trac Baraboom", image: "images/brainrot_images/Tric Trac Baraboom.jpg" },
+                { id: "Trippi Troppi", name: "Trippi Troppi", image: "images/brainrot_images/Trippi Troppi.jpg" },
+                { id: "Troppa Trippa", name: "Troppa Trippa", image: "images/brainrot_images/Troppa Trippa.jpg" },
+                { id: "Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahu", name: "Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahu", image: "images/brainrot_images/Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahu.jpg" },
+                { id: "Zibra Zubra Zibralini", name: "Zibra Zubra Zibralini", image: "images/brainrot_images/Zibra Zubra Zibralini.jpg" }
+            ];
+
+            const CHARACTERS_PER_GAME = 8;
+            
+            let allCharacters = [...brainrotCharacters];
+            let usedCharacterNames = new Set();
+            
+            let flippedCards = [];
+            let matchedPairs = 0;
+            let isProcessing = false;
+
+            // --- 음성 합성 설정 ---
+            const synth = window.speechSynthesis;
+            let voices = [];
+
+            function loadVoices() {
+                if (!synth) {
+                    console.warn("Speech Synthesis not supported by this browser.");
+                    return;
+                }
+                try {
+                    voices = synth.getVoices();
+                    if (synth.onvoiceschanged !== undefined) {
+                        synth.onvoiceschanged = () => voices = synth.getVoices();
+                    }
+                } catch (e) {
+                    console.error("Error loading speech synthesis voices:", e);
+                }
+            }
+            
+            loadVoices();
+
+            function speak(text) {
+                if (!synth || !text) {
+                    return;
+                }
+                if (synth.speaking) {
+                    synth.cancel();
+                }
+                const utterThis = new SpeechSynthesisUtterance(text);
+                // 브레인롯 캐릭터 이름은 이탈리아어이므로 이탈리아어 음성 사용
+                const italianVoice = voices.find(voice => voice.lang.startsWith('it-'));
+                if(italianVoice) {
+                    utterThis.voice = italianVoice;
+                }
+                utterThis.pitch = 1;
+                utterThis.rate = 1;
+                synth.speak(utterThis);
+            }
+
+            function showNotification(name) {
+                notificationText.textContent = name;
+                notificationText.classList.add('show');
+                speak(name);
+                setTimeout(() => {
+                    notificationText.classList.remove('show');
+                }, 1500);
+            }
+
+            function createGameBoard() {
+                gameBoard.innerHTML = '';
+                matchedPairs = 0;
+                
+                let availableCharacters = allCharacters.filter(p => !usedCharacterNames.has(p.name));
+                if (availableCharacters.length < CHARACTERS_PER_GAME) {
+                    usedCharacterNames.clear();
+                    availableCharacters = allCharacters;
+                }
+
+                const selectedCharacters = availableCharacters.sort(() => 0.5 - Math.random()).slice(0, CHARACTERS_PER_GAME);
+                selectedCharacters.forEach(p => usedCharacterNames.add(p.name));
+                
+                const gameCards = [...selectedCharacters, ...selectedCharacters];
+                gameCards.sort(() => 0.5 - Math.random());
+
+                gameCards.forEach(cardInfo => {
+                    const card = createCardElement(cardInfo);
+                    gameBoard.appendChild(card);
+                });
+            }
+
+            function createCardElement(cardInfo) {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.dataset.id = cardInfo.id;
+                card.dataset.name = cardInfo.name;
+
+                const cardFront = document.createElement('div');
+                cardFront.classList.add('card-face', 'card-front');
+
+                const cardBack = document.createElement('div');
+                cardBack.classList.add('card-face', 'card-back');
+                
+                const img = document.createElement('img');
+                img.src = cardInfo.image;
+                img.alt = cardInfo.name;
+                cardBack.appendChild(img);
+                
+                card.appendChild(cardFront);
+                card.appendChild(cardBack);
+
+                card.addEventListener('click', () => {
+                    if (isProcessing || card.classList.contains('flipped') || flippedCards.length >= 2) {
+                        return;
+                    }
+                    flipCard(card);
+                });
+                return card;
+            }
+
+            function flipCard(card) {
+                card.classList.add('flipped');
+                flippedCards.push(card);
+                if (flippedCards.length === 2) {
+                    checkForMatch();
+                }
+            }
+
+            function checkForMatch() {
+                isProcessing = true;
+                const [card1, card2] = flippedCards;
+                if (card1.dataset.id === card2.dataset.id) {
+                    const characterName = card1.dataset.name;
+                    showNotification(characterName);
+                    
+                    matchedPairs++;
+                    flippedCards = [];
+                    isProcessing = false;
+
+                    if (matchedPairs === CHARACTERS_PER_GAME) {
+                        setTimeout(() => gameOverScreen.classList.add('show'), 800);
+                    }
+                } else {
+                    setTimeout(() => {
+                        card1.classList.remove('flipped');
+                        card2.classList.remove('flipped');
+                        flippedCards = [];
+                        isProcessing = false;
+                    }, 1000);
+                }
+            }
+            
+            playAgainBtn.addEventListener('click', () => {
+                gameOverScreen.classList.remove('show');
+                setTimeout(createGameBoard, 300);
+            });
+
+            createGameBoard();
+        });
+    </script>
+</body>
+</html> 
