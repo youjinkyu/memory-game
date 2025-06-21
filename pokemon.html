@@ -291,10 +291,14 @@
             }
 
             function flipCard(card) {
+                isProcessing = true;
                 card.classList.add('flipped');
                 flippedCards.push(card);
+
                 if (flippedCards.length === 2) {
                     checkForMatch();
+                } else {
+                    isProcessing = false;
                 }
             }
             
@@ -305,7 +309,6 @@
             }
 
             function checkForMatch() {
-                isProcessing = true;
                 const [card1, card2] = flippedCards;
                 if (card1.dataset.id === card2.dataset.id) {
                     card1.classList.add('matched');
