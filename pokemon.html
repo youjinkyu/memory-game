@@ -227,97 +227,49 @@
         </div>
     </div>
 
-    <div id="debug-info" style="position: fixed; bottom: 10px; left: 10px; background: rgba(255,255,255,0.9); padding: 10px; border: 1px solid #ccc; font-family: monospace; font-size: 12px; z-index: 200; max-width: 90%; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-        <h4 style="margin: 0 0 5px 0; border-bottom: 1px solid #ddd; padding-bottom: 5px;">음성 기능 디버그</h4>
-        <button id="test-tts-btn" style="margin-bottom: 5px; padding: 3px 6px; font-size: 11px;">'피카츄' 소리 테스트</button>
-        <div id="debug-messages" style="max-height: 100px; overflow-y: auto; background: #f9f9f9; border: 1px solid #eee; padding: 3px;"></div>
-    </div>
-
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const gameBoard = document.getElementById('game-board');
-            const notificationText = document.querySelector('.notification-text');
             const gameOverScreen = document.getElementById('game-over');
             const playAgainBtn = document.getElementById('play-again-btn');
-            const debugMessages = document.getElementById('debug-messages');
-            const testTtsBtn = document.getElementById('test-tts-btn');
-
-            function logDebug(message) {
-                if (debugMessages) {
-                    const p = document.createElement('p');
-                    p.style.margin = '2px 0';
-                    p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-                    debugMessages.prepend(p);
-                }
-                console.log(message);
-            }
-
-            testTtsBtn.addEventListener('click', () => {
-                logDebug("테스트 버튼 클릭됨.");
-                speak('피카츄');
-            });
+            const notificationText = document.querySelector('.notification-text');
 
             const pokemonData = [
-                { id: 1, name: "이상해씨", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/001.png" },
-                { id: 4, name: "파이리", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/004.png" },
-                { id: 7, name: "꼬부기", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/007.png" },
-                { id: 25, name: "피카츄", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/025.png" },
-                { id: 39, name: "푸린", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/039.png" },
-                { id: 133, name: "이브이", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/133.png" },
-                { id: 143, name: "잠만보", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/143.png" },
-                { id: 151, name: "뮤", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/151.png" }
+                { id: 25, name: '피카츄', image: 'https://assets.pokemon.com/assets/cms2/img/pokedex/full/025.png' },
+                { id: 4, name: '파이리', image: 'https://assets.pokemon.com/assets/cms2/img/pokedex/full/004.png' },
+                { id: 7, name: '꼬부기', image: 'https://assets.pokemon.com/assets/cms2/img/pokedex/full/007.png' },
+                { id: 1, name: '이상해씨', image: 'https://assets.pokemon.com/assets/cms2/img/pokedex/full/001.png' },
+                { id: 52, name: '나옹', image: 'https://assets.pokemon.com/assets/cms2/img/pokedex/full/052.png' },
+                { id: 133, name: '이브이', image: 'https://assets.pokemon.com/assets/cms2/img/pokedex/full/133.png' },
+                { id: 143, name: '잠만보', image: 'https://assets.pokemon.com/assets/cms2/img/pokedex/full/143.png' },
+                { id: 94, name: '팬텀', image: 'https://assets.pokemon.com/assets/cms2/img/pokedex/full/094.png' }
             ];
 
             let flippedCards = [];
             let matchedPairs = 0;
             let isProcessing = false;
-            
+            const totalPairs = pokemonData.length;
             const synth = window.speechSynthesis;
 
             function speak(text) {
-                logDebug(`speak('${text}') 호출됨`);
-                if (!synth) {
-                    logDebug("오류: 음성 합성을 지원하지 않음");
-                    return;
-                }
-
-                if (synth.paused) { 
-                    logDebug("정보: 음성 엔진이 'paused' 상태. resume() 호출.");
-                    synth.resume(); 
-                }
-
-                if (synth.speaking) {
-                    logDebug("정보: 이전 음성 취소");
-                    synth.cancel();
-                }
+                if (!synth) return;
+                if (synth.paused) synth.resume();
+                if (synth.speaking) synth.cancel();
 
                 const utterThis = new SpeechSynthesisUtterance(text);
-                
-                utterThis.onstart = () => logDebug("이벤트: onstart - 음성 출력 시작됨.");
-                utterThis.onend = () => logDebug("이벤트: onend - 음성 출력 종료됨.");
-                utterThis.onerror = (event) => logDebug(`**오류 발생**: ${event.error}`);
-
-                const voices = synth.getVoices();
-                const koreanVoice = voices.find(voice => voice.lang === 'ko-KR');
+                const koreanVoice = synth.getVoices().find(voice => voice.lang === 'ko-KR');
                 
                 if (koreanVoice) {
-                    logDebug(`성공: 한국어 음성 ('${koreanVoice.name}') 사용`);
                     utterThis.voice = koreanVoice;
                 } else {
-                    logDebug("정보: 한국어 음성 없음. lang='ko-KR' 설정");
                     utterThis.lang = 'ko-KR';
                 }
-                
-                setTimeout(() => {
-                    logDebug("speak() 실행 시도...");
-                    synth.speak(utterThis);
-                }, 50);
-            }
 
-            if (synth.onvoiceschanged !== undefined) {
-                synth.onvoiceschanged = () => {
-                    logDebug(`onvoiceschanged 이벤트! 사용 가능한 음성: ${synth.getVoices().length}개`);
-                };
+                setTimeout(() => synth.speak(utterThis), 50);
+            }
+            
+            if (synth && synth.onvoiceschanged !== undefined) {
+                synth.onvoiceschanged = () => {};
             }
 
             function createGameBoard() {
@@ -340,6 +292,7 @@
                 card.dataset.id = pokemon.id;
                 card.dataset.name = pokemon.name;
                 card.innerHTML = `<div class="card-face card-front"></div><div class="card-face card-back"><img src="${pokemon.image}" alt="${pokemon.name}"></div>`;
+                
                 card.addEventListener('click', () => {
                     if (isProcessing || card.classList.contains('flipped') || card.classList.contains('matched')) return;
                     flipCard(card);
@@ -348,15 +301,14 @@
             }
 
             function flipCard(card) {
-                if (!isProcessing) {
-                    isProcessing = true;
-                    card.classList.add('flipped');
-                    flippedCards.push(card);
-                    if (flippedCards.length === 2) {
-                        checkForMatch();
-                    } else {
-                        isProcessing = false;
-                    }
+                isProcessing = true;
+                card.classList.add('flipped');
+                flippedCards.push(card);
+
+                if (flippedCards.length === 2) {
+                    checkForMatch();
+                } else {
+                    isProcessing = false;
                 }
             }
             
@@ -375,10 +327,10 @@
                     showNotification(card1.dataset.name);
                     matchedPairs++;
                     flippedCards = [];
-                    if (matchedPairs === pokemonData.length) {
+                    isProcessing = false;
+                    if (matchedPairs === totalPairs) {
                         setTimeout(() => gameOverScreen.classList.add('show'), 800);
                     }
-                    isProcessing = false;
                 } else {
                     setTimeout(() => {
                         card1.classList.remove('flipped');
@@ -391,7 +343,6 @@
             
             playAgainBtn.addEventListener('click', createGameBoard);
             createGameBoard();
-            logDebug("포켓몬 메모리 게임 시작됨.");
         });
     </script>
 </body>
