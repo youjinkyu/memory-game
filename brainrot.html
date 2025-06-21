@@ -226,12 +226,29 @@
             </div>
         </div>
     </div>
+
+    <div id="debug-info" style="position: fixed; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 10px; max-width: 90%; z-index: 200; line-height: 1.4;">
+        <h4 style="margin: 0 0 5px 0;">Brainrot Audio Debug</h4>
+        <div id="debug-messages" style="max-height: 150px; overflow-y: auto;"></div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const gameBoard = document.getElementById('game-board');
             const notificationText = document.querySelector('.notification-text');
             const gameOverScreen = document.getElementById('game-over');
             const playAgainBtn = document.getElementById('play-again-btn');
+            const debugMessages = document.getElementById('debug-messages');
+
+            function logDebug(message) {
+                if (debugMessages) {
+                    const p = document.createElement('p');
+                    p.style.margin = '2px 0';
+                    p.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`; // Use innerHTML to render line breaks
+                    debugMessages.prepend(p);
+                }
+                console.log(message);
+            }
 
             const brainrotCharacters = [
                 { id: "Ballerina Cappucina", name: "Ballerina Cappucina", image: "images/brainrot_images/Ballerina Cappucina.jpg" },
@@ -286,24 +303,32 @@
             let audioUnlocked = false;
 
             function speak(text) {
-                if (!synth) return;
+                if (!synth) {
+                    logDebug("에러: SpeechSynthesis 미지원.");
+                    return;
+                }
                 
                 if (synth.paused) synth.resume();
                 if (synth.speaking) synth.cancel();
 
                 const utterThis = new SpeechSynthesisUtterance(text);
                 
-                // 음성 목록을 가져와서 이탈리아어 음성 찾기
                 const voices = synth.getVoices();
                 const italianVoice = voices.find(voice => voice.lang === 'it-IT');
 
                 if (italianVoice) {
+                    logDebug(`성공: 이탈리아어 음성 찾음 ('${italianVoice.name}'). 사용합니다.`);
                     utterThis.voice = italianVoice;
                 } else {
+                    logDebug(`경고: 이탈리아어(it-IT) 음성 없음. lang 속성으로 대체합니다.`);
                     utterThis.lang = 'it-IT';
                 }
 
-                setTimeout(() => synth.speak(utterThis), 50);
+                utterThis.onerror = (e) => logDebug(`Speak() 에러: ${e.error}`);
+                setTimeout(() => {
+                    logDebug(`'${text}' 발화 시도...`);
+                    synth.speak(utterThis);
+                }, 50);
             }
 
             function unlockAudio() {
@@ -311,18 +336,32 @@
                     const utterance = new SpeechSynthesisUtterance('');
                     synth.speak(utterance);
                     audioUnlocked = true;
+                    logDebug("오디오 잠금 해제 시도됨.");
                 }
             }
             
-            // 브라우저가 음성 목록을 비동기적으로 로드할 수 있으므로,
-            // 목록이 변경될 때마다 speak 함수가 올바른 음성을 찾도록 함
-            if (synth && typeof synth.onvoiceschanged !== 'undefined') {
-                synth.onvoiceschanged = () => {
-                    // 이 이벤트는 speak 함수가 호출될 때 내부적으로 getVoices()를
-                    // 다시 호출하므로, 여기서 특별한 작업을 할 필요는 없음.
-                    // speak 함수가 항상 최신 음성 목록을 사용하게 됨.
-                };
+            function logAvailableVoices() {
+                if (!synth) {
+                    logDebug("음성 기능 미지원 브라우저.");
+                    return;
+                }
+                const voices = synth.getVoices();
+                if (voices.length === 0) {
+                    logDebug("사용 가능한 음성 목록이 비어있음. (아직 로드 중일 수 있음)");
+                    return;
+                }
+                let voiceList = "<b>사용 가능한 음성 목록:</b><br>";
+                voices.forEach(v => {
+                    voiceList += `&nbsp;&nbsp;- ${v.name} (${v.lang})<br>`;
+                });
+                logDebug(voiceList);
             }
+
+            if (synth && typeof synth.onvoiceschanged !== 'undefined') {
+                synth.onvoiceschanged = logAvailableVoices;
+            }
+            
+            setTimeout(logAvailableVoices, 500); // 0.5초 후에도 음성 목록 로깅 시도
 
             function createGameBoard() {
                 resetGame();
@@ -402,6 +441,7 @@
             
             playAgainBtn.addEventListener('click', createGameBoard);
             createGameBoard();
+            logDebug("브레인롯 게임 시작됨.");
         });
     </script>
 </body>
