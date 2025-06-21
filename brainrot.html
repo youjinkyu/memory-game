@@ -267,7 +267,7 @@
                 { id: "Rhino Toasterino", name: "Rhino Toasterino", image: "images/brainrot_images/Rhino Toasterino.jpg" },
                 { id: "Sigma Boy", name: "Sigma Boy", image: "images/brainrot_images/Sigma Boy.jpg" },
                 { id: "Ta Ta Ta Ta Ta Ta Ta Ta Ta Ta Ta Sahur", name: "Ta Ta Ta Ta Ta Ta Ta Ta Ta Ta Ta Sahur", image: "images/brainrot_images/Ta Ta Ta Ta Ta Ta Ta Ta Ta Ta Ta Sahur.jpg" },
-                { id: "Tigrrullini Watermellini", name: "Tigrrullini Watermellini", image: "images/brainrot_images/Tigrrullini Watermellini.jpg" },
+                { id: "Tigrullini Watermellini", name: "Tigrullini Watermellini", image: "images/brainrot_images/Tigrullini Watermellini.jpg" },
                 { id: "Tigrulli grapefrutunni", name: "Tigrulli grapefrutunni", image: "images/brainrot_images/Tigrulli grapefrutunni.jpg" },
                 { id: "Torrtuginni Dragonfrutinni", name: "Torrtuginni Dragonfrutinni", image: "images/brainrot_images/Torrtuginni Dragonfrutinni.jpg" },
                 { id: "Tralalero Tralala", name: "Tralalero Tralala", image: "images/brainrot_images/Tralalero Tralala.jpg" },
@@ -278,124 +278,116 @@
                 { id: "Zibra Zubra Zibralini", name: "Zibra Zubra Zibralini", image: "images/brainrot_images/Zibra Zubra Zibralini.jpg" }
             ];
 
-            const CHARACTERS_PER_GAME = 8;
-            
-            let allCharacters = [...brainrotCharacters];
-            let usedCharacterNames = new Set();
-            
             let flippedCards = [];
             let matchedPairs = 0;
             let isProcessing = false;
-
-            // --- 음성 합성 설정 ---
+            const totalPairs = 8;
             const synth = window.speechSynthesis;
+            let audioUnlocked = false;
 
             function speak(text) {
-                if (!synth || !text) {
-                    return;
-                }
-                if (synth.speaking) {
-                    synth.cancel();
-                }
+                if (!synth) return;
+                
+                if (synth.paused) synth.resume();
+                if (synth.speaking) synth.cancel();
+
                 const utterThis = new SpeechSynthesisUtterance(text);
                 
-                // 음성 목록을 가져옵니다. voices 변수가 비동기적으로 로드될 수 있으므로 여기서 다시 확인합니다.
-                const currentVoices = synth.getVoices();
-                const italianVoice = currentVoices.find(voice => voice.lang.startsWith('it'));
+                // 음성 목록을 가져와서 이탈리아어 음성 찾기
+                const voices = synth.getVoices();
+                const italianVoice = voices.find(voice => voice.lang === 'it-IT');
 
                 if (italianVoice) {
                     utterThis.voice = italianVoice;
                 } else {
-                    // 이탈리아어 음성이 없는 경우, lang 속성을 설정하여 브라우저가 적절한 음성을 선택하도록 합니다.
                     utterThis.lang = 'it-IT';
-                    console.warn('Italian voice not found. Using language fallback.');
                 }
-                
-                utterThis.pitch = 1;
-                utterThis.rate = 1;
-                synth.speak(utterThis);
+
+                setTimeout(() => synth.speak(utterThis), 50);
             }
 
-            function showNotification(name) {
-                notificationText.textContent = name;
-                notificationText.classList.add('show');
-                speak(name);
-                setTimeout(() => {
-                    notificationText.classList.remove('show');
-                }, 1500);
+            function unlockAudio() {
+                if (!audioUnlocked && synth) {
+                    const utterance = new SpeechSynthesisUtterance('');
+                    synth.speak(utterance);
+                    audioUnlocked = true;
+                }
+            }
+            
+            // 브라우저가 음성 목록을 비동기적으로 로드할 수 있으므로,
+            // 목록이 변경될 때마다 speak 함수가 올바른 음성을 찾도록 함
+            if (synth && typeof synth.onvoiceschanged !== 'undefined') {
+                synth.onvoiceschanged = () => {
+                    // 이 이벤트는 speak 함수가 호출될 때 내부적으로 getVoices()를
+                    // 다시 호출하므로, 여기서 특별한 작업을 할 필요는 없음.
+                    // speak 함수가 항상 최신 음성 목록을 사용하게 됨.
+                };
             }
 
             function createGameBoard() {
-                gameBoard.innerHTML = '';
-                matchedPairs = 0;
+                resetGame();
+                const shuffled = [...brainrotCharacters].sort(() => 0.5 - Math.random());
+                const selected = shuffled.slice(0, totalPairs);
+                const gameCards = [...selected, ...selected].sort(() => 0.5 - Math.random());
                 
-                let availableCharacters = allCharacters.filter(p => !usedCharacterNames.has(p.name));
-                if (availableCharacters.length < CHARACTERS_PER_GAME) {
-                    usedCharacterNames.clear();
-                    availableCharacters = allCharacters;
-                }
-
-                const selectedCharacters = availableCharacters.sort(() => 0.5 - Math.random()).slice(0, CHARACTERS_PER_GAME);
-                selectedCharacters.forEach(p => usedCharacterNames.add(p.name));
-                
-                const gameCards = [...selectedCharacters, ...selectedCharacters];
-                gameCards.sort(() => 0.5 - Math.random());
-
-                gameCards.forEach(cardInfo => {
-                    const card = createCardElement(cardInfo);
+                gameCards.forEach(character => {
+                    const card = createCardElement(character);
                     gameBoard.appendChild(card);
                 });
             }
 
-            function createCardElement(cardInfo) {
+            function resetGame() {
+                gameBoard.innerHTML = '';
+                flippedCards = [];
+                matchedPairs = 0;
+                isProcessing = false;
+                gameOverScreen.classList.remove('show');
+            }
+
+            function createCardElement(character) {
                 const card = document.createElement('div');
                 card.classList.add('card');
-                card.dataset.id = cardInfo.id;
-                card.dataset.name = cardInfo.name;
-
-                const cardFront = document.createElement('div');
-                cardFront.classList.add('card-face', 'card-front');
-
-                const cardBack = document.createElement('div');
-                cardBack.classList.add('card-face', 'card-back');
+                card.dataset.id = character.id;
                 
-                const img = document.createElement('img');
-                img.src = cardInfo.image;
-                img.alt = cardInfo.name;
-                cardBack.appendChild(img);
+                card.innerHTML = `<div class="card-face card-front"></div><div class="card-face card-back"><img src="${character.image}" alt="${character.name}"></div>`;
                 
-                card.appendChild(cardFront);
-                card.appendChild(cardBack);
-
                 card.addEventListener('click', () => {
-                    if (isProcessing || card.classList.contains('flipped') || flippedCards.length >= 2) {
-                        return;
-                    }
+                    if (isProcessing || card.classList.contains('flipped') || card.classList.contains('matched')) return;
+                    unlockAudio();
                     flipCard(card);
                 });
                 return card;
             }
 
             function flipCard(card) {
+                isProcessing = true;
                 card.classList.add('flipped');
                 flippedCards.push(card);
+
                 if (flippedCards.length === 2) {
                     checkForMatch();
+                } else {
+                    isProcessing = false;
                 }
+            }
+            
+            function showNotification(name) {
+                notificationText.textContent = name;
+                notificationText.classList.add('show');
+                speak(name);
+                setTimeout(() => notificationText.classList.remove('show'), 1500);
             }
 
             function checkForMatch() {
-                isProcessing = true;
                 const [card1, card2] = flippedCards;
                 if (card1.dataset.id === card2.dataset.id) {
-                    const characterName = card1.dataset.name;
-                    showNotification(characterName);
-                    
+                    card1.classList.add('matched');
+                    card2.classList.add('matched');
+                    showNotification(card1.dataset.id);
                     matchedPairs++;
                     flippedCards = [];
                     isProcessing = false;
-
-                    if (matchedPairs === CHARACTERS_PER_GAME) {
+                    if (matchedPairs === totalPairs) {
                         setTimeout(() => gameOverScreen.classList.add('show'), 800);
                     }
                 } else {
@@ -408,13 +400,9 @@
                 }
             }
             
-            playAgainBtn.addEventListener('click', () => {
-                gameOverScreen.classList.remove('show');
-                setTimeout(createGameBoard, 300);
-            });
-
+            playAgainBtn.addEventListener('click', createGameBoard);
             createGameBoard();
         });
     </script>
 </body>
-</html> 
+</html>
