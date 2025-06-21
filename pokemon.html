@@ -382,8 +382,17 @@
             let flippedCards = [];
             let matchedPairs = 0;
             let isProcessing = false;
-            const totalPairs = pokemonData.length;
+            let audioUnlocked = false;
+            const totalPairs = 8;
             const synth = window.speechSynthesis;
+
+            function unlockAudio() {
+                if (!audioUnlocked && synth) {
+                    const utterance = new SpeechSynthesisUtterance('');
+                    synth.speak(utterance);
+                    audioUnlocked = true;
+                }
+            }
 
             function speak(text) {
                 if (!synth) return;
@@ -432,6 +441,7 @@
                 
                 card.addEventListener('click', () => {
                     if (isProcessing || card.classList.contains('flipped') || card.classList.contains('matched')) return;
+                    unlockAudio();
                     flipCard(card);
                 });
                 return card;
@@ -465,7 +475,7 @@
                     matchedPairs++;
                     flippedCards = [];
                     isProcessing = false;
-                    if (matchedPairs === 8) {
+                    if (matchedPairs === totalPairs) {
                         setTimeout(() => gameOverScreen.classList.add('show'), 800);
                     }
                 } else {
