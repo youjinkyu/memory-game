@@ -276,7 +276,7 @@
                     return "Unknown";
                 }
             }
-
+            
             function showNotification(name) {
                 notificationText.textContent = name;
                 notificationText.classList.add('show');
@@ -287,7 +287,7 @@
 
             async function createGameBoard() {
                 gameBoard.innerHTML = '<p style="font-size: 1.2rem; color: #555;">포켓몬을 불러오는 중...</p>';
-                matchedPairs = 0;
+                isProcessing = true;
                 
                 if (allPokemon.length === 0) {
                     let fetchedPokemon = [];
@@ -301,9 +301,9 @@
                     fetchedPokemon = results.filter(p => p && p.image);
                     allPokemon = fetchedPokemon;
                 }
-
-                gameBoard.innerHTML = '';
                 
+                resetGame();
+
                 let availablePokemon = allPokemon.filter(p => !usedPokemonNames.has(p.name));
                 if (availablePokemon.length < POKEMON_PER_GAME) {
                     usedPokemonNames.clear();
@@ -320,22 +320,38 @@
                     const card = createCardElement(pokemon);
                     gameBoard.appendChild(card);
                 });
+                isProcessing = false;
+            }
+
+            function resetGame() {
+                gameBoard.innerHTML = '';
+                flippedCards = [];
+                matchedPairs = 0;
+                gameOverScreen.classList.remove('show');
             }
 
             function createCardElement(pokemon) {
                 const card = document.createElement('div');
                 card.classList.add('card');
+                card.dataset.id = pokemon.id;
                 card.dataset.name = pokemon.name;
                 
-                card.innerHTML = `
-                    <div class="card-face card-front"></div>
-                    <div class="card-face card-back">
-                        <img src="${pokemon.image}" alt="${pokemon.name}">
-                    </div>
-                `;
+                const cardFront = document.createElement('div');
+                cardFront.classList.add('card-face', 'card-front');
+
+                const cardBack = document.createElement('div');
+                cardBack.classList.add('card-face', 'card-back');
+                
+                const img = document.createElement('img');
+                img.src = pokemon.image;
+                img.alt = pokemon.name;
+                cardBack.appendChild(img);
+                
+                card.appendChild(cardFront);
+                card.appendChild(cardBack);
 
                 card.addEventListener('click', () => {
-                    if (isProcessing || card.classList.contains('flipped') || card.classList.contains('matched')) {
+                    if (isProcessing || card.classList.contains('flipped') || flippedCards.length >= 2) {
                         return;
                     }
                     flipCard(card);
@@ -344,55 +360,38 @@
             }
 
             function flipCard(card) {
-                isProcessing = true;
                 card.classList.add('flipped');
                 flippedCards.push(card);
-
                 if (flippedCards.length === 2) {
                     checkForMatch();
-                } else {
-                    isProcessing = false;
                 }
             }
 
             function checkForMatch() {
+                isProcessing = true;
                 const [card1, card2] = flippedCards;
-                if (card1.dataset.name === card2.dataset.name) {
-                    handleMatch(card1, card2);
-                } else {
-                    handleMismatch(card1, card2);
-                }
-            }
-
-            function handleMatch(card1, card2) {
-                card1.classList.add('matched');
-                card2.classList.add('matched');
-                matchedPairs++;
-                
-                showNotification(card1.dataset.name);
-                
-                flippedCards = [];
-                isProcessing = false;
-
-                if (matchedPairs === POKEMON_PER_GAME) {
-                    setTimeout(() => {
-                        gameOverScreen.classList.add('show');
-                    }, 2500);
-                }
-            }
-
-            function handleMismatch(card1, card2) {
-                setTimeout(() => {
-                    card1.classList.remove('flipped');
-                    card2.classList.remove('flipped');
+                if (card1.dataset.id === card2.dataset.id) {
+                    showNotification(card1.dataset.name);
+                    
+                    matchedPairs++;
                     flippedCards = [];
                     isProcessing = false;
-                }, 1200);
-            }
 
+                    if (matchedPairs === POKEMON_PER_GAME) {
+                        setTimeout(() => gameOverScreen.classList.add('show'), 800);
+                    }
+                } else {
+                    setTimeout(() => {
+                        card1.classList.remove('flipped');
+                        card2.classList.remove('flipped');
+                        flippedCards = [];
+                        isProcessing = false;
+                    }, 1000);
+                }
+            }
+            
             playAgainBtn.addEventListener('click', createGameBoard);
 
-            // 최초 게임 시작
             createGameBoard();
         });
     </script>
