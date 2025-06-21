@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>포켓몬 메모리 게임</title>
+    <style>
+        :root {
+            --bg-color: #f0f4f8;
+            --primary-color: #ffffff;
+            --secondary-color: #e3f2fd;
+            --accent-color: #2979ff;
+            --font-color: #333333;
+            --card-bg: #16213e;
+            --card-shadow: rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--font-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: var(--accent-color);
+            text-shadow: none;
+        }
+
+        .notification-container {
+            height: 40px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .notification-text {
+            background-color: var(--secondary-color);
+            color: var(--font-color);
+            padding: 10px 25px;
+            border-radius: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-20px);
+            transition: opacity 0.4s ease, visibility 0.4s ease, transform 0.4s ease;
+        }
+
+        .notification-text.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            perspective: 1000px;
+        }
+
+        .card {
+            aspect-ratio: 1;
+            position: relative;
+            cursor: pointer;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px var(--card-shadow);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .card-front {
+            background-color: #fff;
+            background-image: url('https://upload.wikimedia.org/wikipedia/commons/5/53/Pok%C3%A9_Ball_icon.svg');
+            background-size: 70%;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .card-back {
+            background-color: var(--primary-color);
+            transform: rotateY(180deg);
+        }
+
+        .card-back img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .game-over.show {
+            display: flex;
+        }
+
+        .game-over-content {
+            background: var(--primary-color);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border: 2px solid var(--accent-color);
+        }
+
+        .game-over-content h2 {
+            color: var(--accent-color);
+            margin-bottom: 20px;
+        }
+
+        #play-again-btn {
+            background: var(--accent-color);
+            color: var(--primary-color);
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background-color 0.3s ease;
+        }
+
+        #play-again-btn:hover {
+            background-color: #448aff;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            h1 {
+                font-size: 2rem;
+                margin-bottom: 15px;
+            }
+            .game-board {
+                gap: 10px;
+            }
+            .game-over-content {
+                width: 90%;
+                padding: 30px;
+            }
+            .notification-text {
+                font-size: 1rem;
+                padding: 8px 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+            .game-board {
+                gap: 8px;
+            }
+            .game-over-content {
+                padding: 20px;
+            }
+            .game-over-content h2 {
+                font-size: 1.5rem;
+            }
+            #play-again-btn {
+                padding: 12px 25px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>포켓몬 메모리 게임</h1>
+        <div class="notification-container">
+            <p class="notification-text"></p>
+        </div>
+        <div id="game-board" class="game-board"></div>
+        <div class="game-over" id="game-over">
+            <div class="game-over-content">
+                <h2>축하합니다! 🎉</h2>
+                <p>모든 포켓몬을 찾았습니다!</p>
+                <button id="play-again-btn">다시 하기</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const gameBoard = document.getElementById('game-board');
+            const notificationText = document.querySelector('.notification-text');
+            const gameOverScreen = document.getElementById('game-over');
+            const playAgainBtn = document.getElementById('play-again-btn');
+
+            const TOTAL_POKEMON = 80;
+            const POKEMON_PER_GAME = 8;
+            
+            let allPokemon = [];
+            let usedPokemonNames = new Set();
+            
+            let flippedCards = [];
+            let matchedPairs = 0;
+            function loadVoices() {
+            let isProcessing = false;
+
+            // --- 음성 합성 설정 ---
+            const synth = window.speechSynthesis;
+            let voices = [];
+
+            function loadVoices() {
+                if (!synth) {
+                    console.warn("Speech Synthesis not supported by this browser.");
+                    return;
+                }
+                try {
+                    voices = synth.getVoices();
+                    if (synth.onvoiceschanged !== undefined) {
+                        synth.onvoiceschanged = () => voices = synth.getVoices();
+                    }
+                } catch (e) {
+                    console.error("Error loading speech synthesis voices:", e);
+                }
+            }
+            
+            loadVoices();
+
+            function speak(text) {
+                if (!synth || !text) {
+                    return;
+                }
+                if (synth.speaking) {
+                    // 이미 말하는 중이면 중단하고 새로 시작 (선택적)
+                    synth.cancel();
+                }
+                const utterThis = new SpeechSynthesisUtterance(text);
+                const koreanVoice = voices.find(voice => voice.lang === 'ko-KR');
+                if(koreanVoice) {
+                    utterThis.voice = koreanVoice;
+                }
+                utterThis.pitch = 1;
+                utterThis.rate = 1;
+                synth.speak(utterThis);
+            }
+
+            // --- 포켓몬 데이터 ---
+            const pokemonData = [
+                { name: "이상해씨", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/001.png" },
+                { name: "파이리", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/004.png" },
+                { name: "꼬부기", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/007.png" },
+                { name: "피카츄", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/025.png" },
+                { name: "푸린", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/039.png" },
+                { name: "식스테일", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/037.png" },
+                { name: "고라파덕", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/054.png" },
+                { name: "팬텀", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/094.png" },
+                { name: "롱스톤", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/095.png" },
+                { name: "잉어킹", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/129.png" },
+                { name: "갸라도스", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/130.png" },
+                { name: "라프라스", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/131.png" },
+                { name: "이브이", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/133.png" },
+                { name: "샤미드", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/134.png" },
+                { name: "쥬피썬더", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/135.png" },
+                { name: "부스터", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/136.png" },
+                { name: "잠만보", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/143.png" },
+                { name: "뮤츠", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/150.png" },
+                { name: "뮤", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/151.png" },
+                { name: "치코리타", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/152.png" },
+                { name: "리아코", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/158.png" },
+                { name: "토게피", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/175.png" },
+                { name: "에브이", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/196.png" },
+                { name: "블래키", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/197.png" }
+            ];
+            allPokemon = [...pokemonData];
+
+
+            function createCard(pokemon) {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.dataset.name = pokemon.name;
+                
+                card.innerHTML = `
+                    <div class="card-face card-front"></div>
+                    <div class="card-face card-back">
+                        <img src="${pokemon.image}" alt="${pokemon.name}">
+                    </div>
+                `;
+
+                card.addEventListener('click', () => {
+                    if (isProcessing || card.classList.contains('flipped') || card.classList.contains('matched')) {
+                        return;
+                    }
+                    flipCard(card);
+                });
+                return card;
+            }
+
+            function flipCard(card) {
+                isProcessing = true;
+                card.classList.add('flipped');
+                flippedCards.push(card);
+
+                if (flippedCards.length === 2) {
+                    checkForMatch();
+                } else {
+                    isProcessing = false;
+                }
+            }
+
+            function checkForMatch() {
+                const [card1, card2] = flippedCards;
+                if (card1.dataset.name === card2.dataset.name) {
+                    handleMatch(card1, card2);
+                } else {
+                    handleMismatch(card1, card2);
+                }
+            }
+
+            function handleMatch(card1, card2) {
+                card1.classList.add('matched');
+                card2.classList.add('matched');
+                matchedPairs++;
+                
+                showNotification(card1.dataset.name);
+                
+                flippedCards = [];
+                isProcessing = false;
+
+                if (matchedPairs === POKEMON_PER_GAME) {
+                    setTimeout(() => {
+                        gameOverScreen.classList.add('show');
+                    }, 2500);
+                }
+            }
+
+            function handleMismatch(card1, card2) {
+                setTimeout(() => {
+                    card1.classList.remove('flipped');
+                    card2.classList.remove('flipped');
+                    flippedCards = [];
+                    isProcessing = false;
+                }, 1200);
+            }
+            
+            function showNotification(name) {
+                notificationText.textContent = name;
+                notificationText.classList.add('show');
+                
+                speak(name);
+
+                setTimeout(() => {
+                    notificationText.classList.remove('show');
+                }, 2000);
+            }
+
+            function startGame() {
+                gameBoard.innerHTML = '';
+                flippedCards = [];
+                matchedPairs = 0;
+                isProcessing = false;
+                gameOverScreen.classList.remove('show');
+
+                let availablePokemon = allPokemon.filter(p => !usedPokemonNames.has(p.name));
+                if (availablePokemon.length < POKEMON_PER_GAME) {
+                    usedPokemonNames.clear();
+                    availablePokemon = allPokemon;
+                }
+
+                const selectedPokemon = availablePokemon.sort(() => 0.5 - Math.random()).slice(0, POKEMON_PER_GAME);
+                selectedPokemon.forEach(p => usedPokemonNames.add(p.name));
+
+                const gameCards = [...selectedPokemon, ...selectedPokemon].sort(() => 0.5 - Math.random());
+
+                gameCards.forEach(pokemon => {
+                    gameBoard.appendChild(createCard(pokemon));
+                });
+            }
+
+            playAgainBtn.addEventListener('click', startGame);
+
+            // 최초 게임 시작
+            startGame();
+        });
+    </script>
+</body>
+</html> 
