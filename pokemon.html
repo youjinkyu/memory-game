@@ -233,98 +233,38 @@
             const gameOverScreen = document.getElementById('game-over');
             const playAgainBtn = document.getElementById('play-again-btn');
 
-            const TOTAL_POKEMON_TO_FETCH = 80;
-            const POKEMON_PER_GAME = 8;
-            
-            let allPokemon = [];
-            let usedPokemonNames = new Set();
-            
+            const pokemonData = [
+                { id: 1, name: "이상해씨", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/001.png" },
+                { id: 4, name: "파이리", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/004.png" },
+                { id: 7, name: "꼬부기", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/007.png" },
+                { id: 25, name: "피카츄", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/025.png" },
+                { id: 39, name: "푸린", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/039.png" },
+                { id: 133, name: "이브이", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/133.png" },
+                { id: 143, name: "잠만보", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/143.png" },
+                { id: 151, name: "뮤", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/151.png" }
+            ];
+
             let flippedCards = [];
             let matchedPairs = 0;
             let isProcessing = false;
 
-            async function fetchPokemon(id) {
-                try {
-                    const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    const data = await response.json();
-                    const koreanName = await fetchPokemonName(data.species.url);
-                    return { id: data.id, name: koreanName, image: data.sprites.front_default };
-                } catch (error) {
-                    console.error(`Failed to fetch Pokémon ${id}:`, error);
-                    return null;
-                }
-            }
-
-            async function fetchPokemonName(speciesUrl) {
-                try {
-                    const response = await fetch(speciesUrl);
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    const data = await response.json();
-                    const koreanNameEntry = data.names.find(entry => entry.language.name === 'ko');
-                    return koreanNameEntry ? koreanNameEntry.name : data.name;
-                } catch (error) {
-                    console.error(`Failed to fetch species from ${speciesUrl}:`, error);
-                    return "Unknown";
-                }
-            }
-            
-            function showNotification(name) {
-                notificationText.textContent = name;
-                notificationText.classList.add('show');
-                setTimeout(() => notificationText.classList.remove('show'), 1500);
-            }
-
-            async function createGameBoard() {
-                isProcessing = true;
-                gameBoard.innerHTML = `<p style="font-size: 1.2rem; color: #555;">포켓몬을 불러오는 중...</p>`;
+            function createGameBoard() {
+                resetGame();
                 
-                try {
-                    if (allPokemon.length === 0) {
-                        const pokemonIds = new Set();
-                        while(pokemonIds.size < TOTAL_POKEMON_TO_FETCH) {
-                            pokemonIds.add(Math.floor(Math.random() * 898) + 1);
-                        }
-                        const fetchPromises = Array.from(pokemonIds).map(id => fetchPokemon(id));
-                        const results = await Promise.all(fetchPromises);
-                        allPokemon = results.filter(p => p && p.image);
+                const gameCards = [...pokemonData, ...pokemonData];
+                gameCards.sort(() => 0.5 - Math.random());
 
-                        if (allPokemon.length < POKEMON_PER_GAME) {
-                            throw new Error("API에서 포켓몬을 충분히 불러오지 못했습니다.");
-                        }
-                    }
-                    
-                    resetGame();
-
-                    let availablePokemon = allPokemon.filter(p => !usedPokemonNames.has(p.name));
-                    if (availablePokemon.length < POKEMON_PER_GAME) {
-                        usedPokemonNames.clear();
-                        availablePokemon = allPokemon;
-                    }
-
-                    const selectedPokemon = availablePokemon.sort(() => 0.5 - Math.random()).slice(0, POKEMON_PER_GAME);
-                    selectedPokemon.forEach(p => usedPokemonNames.add(p.name));
-                    
-                    const gameCards = [...selectedPokemon, ...selectedPokemon];
-                    gameCards.sort(() => 0.5 - Math.random());
-
-                    gameCards.forEach(pokemon => {
-                        const card = createCardElement(pokemon);
-                        gameBoard.appendChild(card);
-                    });
-
-                } catch (error) {
-                    console.error("게임 보드 생성 실패:", error);
-                    gameBoard.innerHTML = `<p style="font-size: 1.2rem; color: #d32f2f;">게임을 불러오는데 실패했습니다.<br>잠시 후 새로고침 해주세요.</p>`;
-                } finally {
-                    isProcessing = false;
-                }
+                gameCards.forEach(pokemon => {
+                    const card = createCardElement(pokemon);
+                    gameBoard.appendChild(card);
+                });
             }
 
             function resetGame() {
                 gameBoard.innerHTML = '';
                 flippedCards = [];
                 matchedPairs = 0;
+                isProcessing = false;
                 gameOverScreen.classList.remove('show');
             }
 
@@ -357,6 +297,12 @@
                     checkForMatch();
                 }
             }
+            
+            function showNotification(name) {
+                notificationText.textContent = name;
+                notificationText.classList.add('show');
+                setTimeout(() => notificationText.classList.remove('show'), 1500);
+            }
 
             function checkForMatch() {
                 isProcessing = true;
@@ -365,12 +311,14 @@
                     card1.classList.add('matched');
                     card2.classList.add('matched');
                     showNotification(card1.dataset.name);
+                    
                     matchedPairs++;
                     flippedCards = [];
-                    if (matchedPairs === POKEMON_PER_GAME) {
+                    isProcessing = false;
+
+                    if (matchedPairs === pokemonData.length) {
                         setTimeout(() => gameOverScreen.classList.add('show'), 800);
                     }
-                    isProcessing = false;
                 } else {
                     setTimeout(() => {
                         card1.classList.remove('flipped');
