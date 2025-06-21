@@ -289,24 +289,6 @@
 
             // --- 음성 합성 설정 ---
             const synth = window.speechSynthesis;
-            let voices = [];
-
-            function loadVoices() {
-                if (!synth) {
-                    console.warn("Speech Synthesis not supported by this browser.");
-                    return;
-                }
-                try {
-                    voices = synth.getVoices();
-                    if (synth.onvoiceschanged !== undefined) {
-                        synth.onvoiceschanged = () => voices = synth.getVoices();
-                    }
-                } catch (e) {
-                    console.error("Error loading speech synthesis voices:", e);
-                }
-            }
-            
-            loadVoices();
 
             function speak(text) {
                 if (!synth || !text) {
@@ -316,11 +298,19 @@
                     synth.cancel();
                 }
                 const utterThis = new SpeechSynthesisUtterance(text);
-                // 브레인롯 캐릭터 이름은 이탈리아어이므로 이탈리아어 음성 사용
-                const italianVoice = voices.find(voice => voice.lang.startsWith('it-'));
-                if(italianVoice) {
+                
+                // 음성 목록을 가져옵니다. voices 변수가 비동기적으로 로드될 수 있으므로 여기서 다시 확인합니다.
+                const currentVoices = synth.getVoices();
+                const italianVoice = currentVoices.find(voice => voice.lang.startsWith('it'));
+
+                if (italianVoice) {
                     utterThis.voice = italianVoice;
+                } else {
+                    // 이탈리아어 음성이 없는 경우, lang 속성을 설정하여 브라우저가 적절한 음성을 선택하도록 합니다.
+                    utterThis.lang = 'it-IT';
+                    console.warn('Italian voice not found. Using language fallback.');
                 }
+                
                 utterThis.pitch = 1;
                 utterThis.rate = 1;
                 synth.speak(utterThis);
