@@ -241,79 +241,88 @@
             
             let flippedCards = [];
             let matchedPairs = 0;
-            function loadVoices() {
             let isProcessing = false;
 
-            // --- 음성 합성 설정 ---
-            const synth = window.speechSynthesis;
-            let voices = [];
-
-            function loadVoices() {
-                if (!synth) {
-                    console.warn("Speech Synthesis not supported by this browser.");
-                    return;
-                }
+            async function fetchPokemon(id) {
                 try {
-                    voices = synth.getVoices();
-                    if (synth.onvoiceschanged !== undefined) {
-                        synth.onvoiceschanged = () => voices = synth.getVoices();
+                    const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                } catch (e) {
-                    console.error("Error loading speech synthesis voices:", e);
+                    const data = await response.json();
+                    const koreanName = await fetchPokemonName(data.species.url);
+                    return {
+                        id: data.id,
+                        name: koreanName,
+                        image: data.sprites.front_default
+                    };
+                } catch (error) {
+                    console.error("Failed to fetch Pokémon:", error);
+                    return null;
                 }
             }
-            
-            loadVoices();
 
-            function speak(text) {
-                if (!synth || !text) {
-                    return;
+            async function fetchPokemonName(speciesUrl) {
+                try {
+                    const response = await fetch(speciesUrl);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const data = await response.json();
+                    const koreanNameEntry = data.names.find(entry => entry.language.name === 'ko');
+                    return koreanNameEntry ? koreanNameEntry.name : data.name;
+                } catch (error) {
+                    console.error("Failed to fetch Pokémon species data:", error);
+                    return "Unknown";
                 }
-                if (synth.speaking) {
-                    // 이미 말하는 중이면 중단하고 새로 시작 (선택적)
-                    synth.cancel();
-                }
-                const utterThis = new SpeechSynthesisUtterance(text);
-                const koreanVoice = voices.find(voice => voice.lang === 'ko-KR');
-                if(koreanVoice) {
-                    utterThis.voice = koreanVoice;
-                }
-                utterThis.pitch = 1;
-                utterThis.rate = 1;
-                synth.speak(utterThis);
             }
 
-            // --- 포켓몬 데이터 ---
-            const pokemonData = [
-                { name: "이상해씨", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/001.png" },
-                { name: "파이리", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/004.png" },
-                { name: "꼬부기", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/007.png" },
-                { name: "피카츄", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/025.png" },
-                { name: "푸린", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/039.png" },
-                { name: "식스테일", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/037.png" },
-                { name: "고라파덕", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/054.png" },
-                { name: "팬텀", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/094.png" },
-                { name: "롱스톤", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/095.png" },
-                { name: "잉어킹", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/129.png" },
-                { name: "갸라도스", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/130.png" },
-                { name: "라프라스", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/131.png" },
-                { name: "이브이", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/133.png" },
-                { name: "샤미드", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/134.png" },
-                { name: "쥬피썬더", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/135.png" },
-                { name: "부스터", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/136.png" },
-                { name: "잠만보", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/143.png" },
-                { name: "뮤츠", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/150.png" },
-                { name: "뮤", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/151.png" },
-                { name: "치코리타", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/152.png" },
-                { name: "리아코", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/158.png" },
-                { name: "토게피", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/175.png" },
-                { name: "에브이", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/196.png" },
-                { name: "블래키", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/197.png" }
-            ];
-            allPokemon = [...pokemonData];
+            function showNotification(name) {
+                notificationText.textContent = name;
+                notificationText.classList.add('show');
+                setTimeout(() => {
+                    notificationText.classList.remove('show');
+                }, 1500);
+            }
 
+            async function createGameBoard() {
+                gameBoard.innerHTML = '<p style="font-size: 1.2rem; color: #555;">포켓몬을 불러오는 중...</p>';
+                matchedPairs = 0;
+                
+                if (allPokemon.length === 0) {
+                    let fetchedPokemon = [];
+                    const pokemonIds = new Set();
+                    while(pokemonIds.size < TOTAL_POKEMON) {
+                        pokemonIds.add(Math.floor(Math.random() * 898) + 1);
+                    }
+                    
+                    const fetchPromises = Array.from(pokemonIds).map(id => fetchPokemon(id));
+                    const results = await Promise.all(fetchPromises);
+                    fetchedPokemon = results.filter(p => p && p.image);
+                    allPokemon = fetchedPokemon;
+                }
 
-            function createCard(pokemon) {
+                gameBoard.innerHTML = '';
+                
+                let availablePokemon = allPokemon.filter(p => !usedPokemonNames.has(p.name));
+                if (availablePokemon.length < POKEMON_PER_GAME) {
+                    usedPokemonNames.clear();
+                    availablePokemon = allPokemon;
+                }
+
+                const selectedPokemon = availablePokemon.sort(() => 0.5 - Math.random()).slice(0, POKEMON_PER_GAME);
+                selectedPokemon.forEach(p => usedPokemonNames.add(p.name));
+                
+                const gameCards = [...selectedPokemon, ...selectedPokemon];
+                gameCards.sort(() => 0.5 - Math.random());
+
+                gameCards.forEach(pokemon => {
+                    const card = createCardElement(pokemon);
+                    gameBoard.appendChild(card);
+                });
+            }
+
+            function createCardElement(pokemon) {
                 const card = document.createElement('div');
                 card.classList.add('card');
                 card.dataset.name = pokemon.name;
@@ -380,45 +389,11 @@
                     isProcessing = false;
                 }, 1200);
             }
-            
-            function showNotification(name) {
-                notificationText.textContent = name;
-                notificationText.classList.add('show');
-                
-                speak(name);
 
-                setTimeout(() => {
-                    notificationText.classList.remove('show');
-                }, 2000);
-            }
-
-            function startGame() {
-                gameBoard.innerHTML = '';
-                flippedCards = [];
-                matchedPairs = 0;
-                isProcessing = false;
-                gameOverScreen.classList.remove('show');
-
-                let availablePokemon = allPokemon.filter(p => !usedPokemonNames.has(p.name));
-                if (availablePokemon.length < POKEMON_PER_GAME) {
-                    usedPokemonNames.clear();
-                    availablePokemon = allPokemon;
-                }
-
-                const selectedPokemon = availablePokemon.sort(() => 0.5 - Math.random()).slice(0, POKEMON_PER_GAME);
-                selectedPokemon.forEach(p => usedPokemonNames.add(p.name));
-
-                const gameCards = [...selectedPokemon, ...selectedPokemon].sort(() => 0.5 - Math.random());
-
-                gameCards.forEach(pokemon => {
-                    gameBoard.appendChild(createCard(pokemon));
-                });
-            }
-
-            playAgainBtn.addEventListener('click', startGame);
+            playAgainBtn.addEventListener('click', createGameBoard);
 
             // 최초 게임 시작
-            startGame();
+            createGameBoard();
         });
     </script>
 </body>
