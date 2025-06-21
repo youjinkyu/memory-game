@@ -226,11 +226,6 @@
             </div>
         </div>
     </div>
-    
-    <div id="debug-info" style="position: fixed; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px; max-width: 90%; z-index: 200;">
-        <h4 style="margin: 0 0 5px 0;">Audio Debug</h4>
-        <div id="debug-messages" style="max-height: 100px; overflow-y: auto;"></div>
-    </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -238,17 +233,6 @@
             const gameOverScreen = document.getElementById('game-over');
             const playAgainBtn = document.getElementById('play-again-btn');
             const notificationText = document.querySelector('.notification-text');
-            const debugMessages = document.getElementById('debug-messages');
-
-            function logDebug(message) {
-                if (debugMessages) {
-                    const p = document.createElement('p');
-                    p.style.margin = '2px 0';
-                    p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-                    debugMessages.prepend(p);
-                }
-                console.log(message);
-            }
 
             const pokemonData = [
                 { id: 25, name: '피카츄', image: 'https://assets.pokemon.com/assets/cms2/img/pokedex/full/025.png' },
@@ -403,86 +387,34 @@
             const synth = window.speechSynthesis;
 
             function unlockAudio() {
-                logDebug('unlockAudio() 시도...');
-                if (audioUnlocked) {
-                    logDebug('이미 활성화됨.');
-                    return;
-                }
-                if (!synth) {
-                    logDebug('SpeechSynthesis 미지원.');
-                    return;
-                }
-
-                // 오디오 컨텍스트 재개 시도
-                synth.resume(); 
-
-                const utterance = new SpeechSynthesisUtterance('');
-                utterance.volume = 0; // 실제 소리 방지
-                
-                utterance.onstart = () => {
-                    logDebug('오디오 잠금 해제용 발화 시작됨.');
-                };
-                utterance.onend = () => {
+                if (!audioUnlocked && synth) {
+                    const utterance = new SpeechSynthesisUtterance('');
+                    synth.speak(utterance);
                     audioUnlocked = true;
-                    logDebug('오디오 잠금 해제 성공!');
-                };
-                utterance.onerror = (e) => {
-                    logDebug(`오디오 잠금 해제 에러: ${e.error}`);
-                };
-                synth.speak(utterance);
+                }
             }
 
             function speak(text) {
-                logDebug(`speak('${text}') 호출됨.`);
-                if (!synth) {
-                    logDebug('에러: SpeechSynthesis 미지원.');
-                    return;
-                }
-                if (!audioUnlocked) {
-                    logDebug('경고: 오디오가 아직 활성화되지 않음.');
-                }
-                
-                // 만약을 위해 다시 재개
-                synth.resume();
-
-                if (synth.speaking) {
-                    logDebug('정보: 진행중인 발화 취소.');
-                    synth.cancel();
-                }
+                if (!synth) return;
+                if (synth.paused) synth.resume();
+                if (synth.speaking) synth.cancel();
 
                 const utterThis = new SpeechSynthesisUtterance(text);
                 
-                utterThis.onerror = (event) => {
-                    logDebug(`speak() 에러 발생: ${event.error}`);
-                };
-
                 const voices = synth.getVoices();
                 const koreanVoice = voices.find(voice => voice.lang === 'ko-KR');
                 
                 if (koreanVoice) {
-                    logDebug(`한국어 음성 사용: ${koreanVoice.name}`);
                     utterThis.voice = koreanVoice;
                 } else {
-                    logDebug('정보: 한국어 음성 없음. 기본값 사용.');
                     utterThis.lang = 'ko-KR';
                 }
 
-                setTimeout(() => {
-                    logDebug('synth.speak() 실행...');
-                    synth.speak(utterThis);
-                }, 50);
+                setTimeout(() => synth.speak(utterThis), 50);
             }
             
-            if (synth) {
-                if (synth.onvoiceschanged !== undefined) {
-                    synth.onvoiceschanged = () => {
-                        const voices = synth.getVoices();
-                        logDebug(`사용 가능한 음성 목록 업데이트됨: ${voices.length}개`);
-                    };
-                }
-                logDebug(`음성 기능 지원됨. 현재 사용 가능한 음성: ${synth.getVoices().length}개`);
-            } else {
-                logDebug('음성 기능이 지원되지 않는 브라우저입니다.');
+            if (synth && synth.onvoiceschanged !== undefined) {
+                synth.onvoiceschanged = () => {};
             }
 
             function createGameBoard() {
@@ -560,7 +492,6 @@
             
             playAgainBtn.addEventListener('click', createGameBoard);
             createGameBoard();
-            logDebug("게임 시작됨. 첫 카드를 클릭하여 오디오를 활성화하세요.");
         });
     </script>
 </body>
