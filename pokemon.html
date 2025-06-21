@@ -248,6 +248,29 @@
             let matchedPairs = 0;
             let isProcessing = false;
 
+            const synth = window.speechSynthesis;
+
+            function speak(text) {
+                if (!synth || !text) return;
+
+                if (synth.speaking) {
+                    synth.cancel();
+                }
+                const utterThis = new SpeechSynthesisUtterance(text);
+                const voices = synth.getVoices();
+                const koreanVoice = voices.find(voice => voice.lang === 'ko-KR');
+                
+                if (koreanVoice) {
+                    utterThis.voice = koreanVoice;
+                } else {
+                    utterThis.lang = 'ko-KR';
+                }
+
+                utterThis.pitch = 1;
+                utterThis.rate = 1;
+                synth.speak(utterThis);
+            }
+
             function createGameBoard() {
                 resetGame();
                 
@@ -305,6 +328,7 @@
             function showNotification(name) {
                 notificationText.textContent = name;
                 notificationText.classList.add('show');
+                speak(name);
                 setTimeout(() => notificationText.classList.remove('show'), 1500);
             }
 
