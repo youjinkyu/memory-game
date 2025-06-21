@@ -239,8 +239,6 @@
             const notificationText = document.querySelector('.notification-text');
             const gameOverScreen = document.getElementById('game-over');
             const playAgainBtn = document.getElementById('play-again-btn');
-            
-            // --- 디버그 UI 요소 ---
             const debugMessages = document.getElementById('debug-messages');
             const testTtsBtn = document.getElementById('test-tts-btn');
 
@@ -248,10 +246,10 @@
                 if (debugMessages) {
                     const p = document.createElement('p');
                     p.style.margin = '2px 0';
-                    p.textContent = message;
+                    p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
                     debugMessages.prepend(p);
                 }
-                console.log(message); // 개발자용 로그
+                console.log(message);
             }
 
             testTtsBtn.addEventListener('click', () => {
@@ -259,7 +257,6 @@
                 speak('피카츄');
             });
 
-            // --- 게임 데이터 ---
             const pokemonData = [
                 { id: 1, name: "이상해씨", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/001.png" },
                 { id: 4, name: "파이리", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/004.png" },
@@ -271,61 +268,58 @@
                 { id: 151, name: "뮤", image: "https://assets.pokemon.com/assets/cms2/img/pokedex/full/151.png" }
             ];
 
-            // --- 게임 변수 ---
             let flippedCards = [];
             let matchedPairs = 0;
             let isProcessing = false;
             
-            // --- 음성 합성(TTS) 로직 ---
             const synth = window.speechSynthesis;
 
             function speak(text) {
                 logDebug(`speak('${text}') 호출됨`);
                 if (!synth) {
-                    logDebug("오류: 음성 합성을 지원하지 않는 브라우저입니다.");
+                    logDebug("오류: 음성 합성을 지원하지 않음");
                     return;
                 }
 
+                if (synth.paused) { 
+                    logDebug("정보: 음성 엔진이 'paused' 상태. resume() 호출.");
+                    synth.resume(); 
+                }
+
                 if (synth.speaking) {
+                    logDebug("정보: 이전 음성 취소");
                     synth.cancel();
                 }
 
                 const utterThis = new SpeechSynthesisUtterance(text);
-                const voices = synth.getVoices();
-                logDebug(`사용 가능한 음성: ${voices.length}개`);
+                
+                utterThis.onstart = () => logDebug("이벤트: onstart - 음성 출력 시작됨.");
+                utterThis.onend = () => logDebug("이벤트: onend - 음성 출력 종료됨.");
+                utterThis.onerror = (event) => logDebug(`**오류 발생**: ${event.error}`);
 
+                const voices = synth.getVoices();
                 const koreanVoice = voices.find(voice => voice.lang === 'ko-KR');
                 
                 if (koreanVoice) {
-                    logDebug(`성공: 한국어 음성(' ${koreanVoice.name} ')을 찾았습니다.`);
+                    logDebug(`성공: 한국어 음성 ('${koreanVoice.name}') 사용`);
                     utterThis.voice = koreanVoice;
                 } else {
-                    logDebug("정보: 한국어 음성이 없습니다. lang='ko-KR'로 설정합니다.");
+                    logDebug("정보: 한국어 음성 없음. lang='ko-KR' 설정");
                     utterThis.lang = 'ko-KR';
                 }
-
-                utterThis.onerror = function (event) {
-                    logDebug(`**오류 발생**: ${event.error}`);
-                };
                 
-                synth.speak(utterThis);
+                setTimeout(() => {
+                    logDebug("speak() 실행 시도...");
+                    synth.speak(utterThis);
+                }, 50);
             }
 
-            // 페이지 로드 시 음성 기능 점검
-            setTimeout(() => {
-                logDebug(`페이지 로드 후, 사용 가능한 음성: ${synth.getVoices().length}개`);
-                if (synth.getVoices().length === 0) {
-                     logDebug("정보: 브라우저 음성 로딩이 늦어지고 있습니다.");
-                }
-            }, 500);
-            
             if (synth.onvoiceschanged !== undefined) {
                 synth.onvoiceschanged = () => {
-                    logDebug(`onvoiceschanged 이벤트 발생! 현재 음성: ${synth.getVoices().length}개`);
+                    logDebug(`onvoiceschanged 이벤트! 사용 가능한 음성: ${synth.getVoices().length}개`);
                 };
             }
 
-            // --- 게임 핵심 로직 ---
             function createGameBoard() {
                 resetGame();
                 const gameCards = [...pokemonData, ...pokemonData].sort(() => 0.5 - Math.random());
@@ -347,20 +341,22 @@
                 card.dataset.name = pokemon.name;
                 card.innerHTML = `<div class="card-face card-front"></div><div class="card-face card-back"><img src="${pokemon.image}" alt="${pokemon.name}"></div>`;
                 card.addEventListener('click', () => {
-                    if (isProcessing || card.classList.contains('flipped')) return;
+                    if (isProcessing || card.classList.contains('flipped') || card.classList.contains('matched')) return;
                     flipCard(card);
                 });
                 return card;
             }
 
             function flipCard(card) {
-                isProcessing = true;
-                card.classList.add('flipped');
-                flippedCards.push(card);
-                if (flippedCards.length === 2) {
-                    checkForMatch();
-                } else {
-                    isProcessing = false;
+                if (!isProcessing) {
+                    isProcessing = true;
+                    card.classList.add('flipped');
+                    flippedCards.push(card);
+                    if (flippedCards.length === 2) {
+                        checkForMatch();
+                    } else {
+                        isProcessing = false;
+                    }
                 }
             }
             
@@ -379,10 +375,10 @@
                     showNotification(card1.dataset.name);
                     matchedPairs++;
                     flippedCards = [];
-                    isProcessing = false;
                     if (matchedPairs === pokemonData.length) {
                         setTimeout(() => gameOverScreen.classList.add('show'), 800);
                     }
+                    isProcessing = false;
                 } else {
                     setTimeout(() => {
                         card1.classList.remove('flipped');
@@ -394,8 +390,8 @@
             }
             
             playAgainBtn.addEventListener('click', createGameBoard);
-
             createGameBoard();
+            logDebug("포켓몬 메모리 게임 시작됨.");
         });
     </script>
 </body>
