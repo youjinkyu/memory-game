@@ -247,27 +247,42 @@
             let flippedCards = [];
             let matchedPairs = 0;
             let isProcessing = false;
-
+            
             const synth = window.speechSynthesis;
+            let voices = [];
+
+            function loadVoices() {
+                voices = synth.getVoices();
+            }
+            
+            // 음성 목록이 비동기적으로 로드될 수 있으므로, 로드 완료 이벤트를 기다립니다.
+            if (synth.onvoiceschanged !== undefined) {
+                synth.onvoiceschanged = loadVoices;
+            }
+            loadVoices(); // 즉시 로드되는 브라우저를 위한 호출
 
             function speak(text) {
                 if (!synth || !text) return;
 
-                if (synth.speaking) {
-                    synth.cancel();
-                }
                 const utterThis = new SpeechSynthesisUtterance(text);
-                const voices = synth.getVoices();
-                const koreanVoice = voices.find(voice => voice.lang === 'ko-KR');
+                
+                // speak 함수 호출 시점에 다시 한번 음성 목록을 확인합니다.
+                const currentVoices = synth.getVoices();
+                const koreanVoice = currentVoices.find(voice => voice.lang === 'ko-KR');
                 
                 if (koreanVoice) {
                     utterThis.voice = koreanVoice;
                 } else {
-                    utterThis.lang = 'ko-KR';
+                    utterThis.lang = 'ko-KR'; // 한국어 음성이 없을 경우, 언어 설정으로 대체
                 }
 
                 utterThis.pitch = 1;
                 utterThis.rate = 1;
+
+                // 이전에 말하던 것이 있다면 취소합니다.
+                if (synth.speaking) {
+                    synth.cancel();
+                }
                 synth.speak(utterThis);
             }
 
