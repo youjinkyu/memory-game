@@ -227,28 +227,12 @@
         </div>
     </div>
 
-    <div id="debug-info" style="position: fixed; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 10px; max-width: 90%; z-index: 200; line-height: 1.4;">
-        <h4 style="margin: 0 0 5px 0;">Brainrot Audio Debug</h4>
-        <div id="debug-messages" style="max-height: 150px; overflow-y: auto;"></div>
-    </div>
-
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const gameBoard = document.getElementById('game-board');
             const notificationText = document.querySelector('.notification-text');
             const gameOverScreen = document.getElementById('game-over');
             const playAgainBtn = document.getElementById('play-again-btn');
-            const debugMessages = document.getElementById('debug-messages');
-
-            function logDebug(message) {
-                if (debugMessages) {
-                    const p = document.createElement('p');
-                    p.style.margin = '2px 0';
-                    p.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`; // Use innerHTML to render line breaks
-                    debugMessages.prepend(p);
-                }
-                console.log(message);
-            }
 
             const brainrotCharacters = [
                 { id: "Ballerina Cappucina", name: "Ballerina Cappucina", image: "images/brainrot_images/Ballerina Cappucina.jpg" },
@@ -303,10 +287,7 @@
             let audioUnlocked = false;
 
             function speak(text) {
-                if (!synth) {
-                    logDebug("에러: SpeechSynthesis 미지원.");
-                    return;
-                }
+                if (!synth) return;
                 
                 if (synth.paused) synth.resume();
                 if (synth.speaking) synth.cancel();
@@ -317,18 +298,12 @@
                 const italianVoice = voices.find(voice => voice.lang === 'it-IT');
 
                 if (italianVoice) {
-                    logDebug(`성공: 이탈리아어 음성 찾음 ('${italianVoice.name}'). 사용합니다.`);
                     utterThis.voice = italianVoice;
                 } else {
-                    logDebug(`경고: 이탈리아어(it-IT) 음성 없음. lang 속성으로 대체합니다.`);
                     utterThis.lang = 'it-IT';
                 }
 
-                utterThis.onerror = (e) => logDebug(`Speak() 에러: ${e.error}`);
-                setTimeout(() => {
-                    logDebug(`'${text}' 발화 시도...`);
-                    synth.speak(utterThis);
-                }, 50);
+                setTimeout(() => synth.speak(utterThis), 50);
             }
 
             function unlockAudio() {
@@ -336,32 +311,12 @@
                     const utterance = new SpeechSynthesisUtterance('');
                     synth.speak(utterance);
                     audioUnlocked = true;
-                    logDebug("오디오 잠금 해제 시도됨.");
                 }
             }
             
-            function logAvailableVoices() {
-                if (!synth) {
-                    logDebug("음성 기능 미지원 브라우저.");
-                    return;
-                }
-                const voices = synth.getVoices();
-                if (voices.length === 0) {
-                    logDebug("사용 가능한 음성 목록이 비어있음. (아직 로드 중일 수 있음)");
-                    return;
-                }
-                let voiceList = "<b>사용 가능한 음성 목록:</b><br>";
-                voices.forEach(v => {
-                    voiceList += `&nbsp;&nbsp;- ${v.name} (${v.lang})<br>`;
-                });
-                logDebug(voiceList);
-            }
-
             if (synth && typeof synth.onvoiceschanged !== 'undefined') {
-                synth.onvoiceschanged = logAvailableVoices;
+                synth.onvoiceschanged = () => {};
             }
-            
-            setTimeout(logAvailableVoices, 500); // 0.5초 후에도 음성 목록 로깅 시도
 
             function createGameBoard() {
                 resetGame();
@@ -441,7 +396,6 @@
             
             playAgainBtn.addEventListener('click', createGameBoard);
             createGameBoard();
-            logDebug("브레인롯 게임 시작됨.");
         });
     </script>
 </body>
